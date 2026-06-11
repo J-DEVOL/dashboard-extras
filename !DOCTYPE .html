@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Controle de Horas Extras</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* TEMA BRANCO E AZUL PRINCIPAL */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1300px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; text-align: center; }
+        .obs { font-size: 13px; color: #666; text-align: center; margin-top: -10px; margin-bottom: 20px;}
+        
+        /* ABAS */
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { padding: 10px 25px; background-color: #e9ecef; color: #0056b3; border: 1px solid #dee2e6; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .tab-btn:hover { background-color: #dbe4f0; }
+        .tab-btn.active { background-color: #0056b3; color: #ffffff; border-color: #0056b3; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .dates-section { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; background: #eef2f5; padding: 15px; border-radius: 8px; border: 1px solid #dce3e9; flex-wrap: wrap;}
+        .dates-section div { display: flex; flex-direction: column; align-items: center; }
+        .dates-section input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; margin-top: 5px; }
+        
+        /* TABELA */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; min-width: 800px; }
+        th, td { border: 1px solid #dce3e9; padding: 6px; text-align: center; font-size: 14px; }
+        th { background-color: #0056b3; color: #ffffff; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        tfoot { background-color: #eef2f5; font-weight: bold; color: #0056b3; }
+        
+        select { width: 75px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer; transition: all 0.2s;}
+        select:focus { outline: none; border-color: #0056b3; }
+        
+        .btn { display: block; width: 250px; margin: 20px auto; padding: 12px; background-color: #007bff; color: #ffffff; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; text-align: center; transition: 0.3s; }
+        .btn:hover { background-color: #0056b3; }
+        
+        /* PANÉIS DE INDICADORES DA ABA LANÇAMENTOS */
+        .dashboard-panel { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
+        .card { flex: 1; min-width: 300px; background: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .card h2 { font-size: 22px; margin-top: 0; margin-bottom: 25px; color: #0056b3; }
+        .card p { margin-bottom: 15px; font-size: 15px; }
+        .ranking-list { list-style: none; padding: 0; margin: 0; }
+        .ranking-list li { background: #ffffff; margin-bottom: 12px; padding: 12px 15px; border-radius: 4px; display: flex; justify-content: space-between; border: 1px solid #e2e8f0; align-items: center;}
+        .ranking-list li span { color: #333; font-size: 15px; }
+        .ranking-list li strong { font-size: 16px; color: #111; }
+        .chart-container { width: 100%; max-width: 1000px; margin: 0 auto 30px auto; padding: 20px; background: #fff; border-radius: 8px; border: 1px solid #dce3e9; }
+
+        /* ESTILO DO RESUMO (COMUNICADO) */
+        .summary-container { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+        .comunicado-title { width: 100%; text-align: left; color: #1e293b; font-size: 32px; font-weight: 800; margin-top: 10px; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;}
+        .summary-card { background: #ffffff; border-radius: 8px; border: 1px solid #f1f5f9; box-shadow: 0 4px 20px rgba(0,0,0,0.04); padding: 25px 20px; flex: 1; min-width: 280px; max-width: 350px; border-top: 4px solid #ccc; }
+        .card-sexta { border-top-color: #3b82f6; } 
+        .card-sabado { border-top-color: #f59e0b; } 
+        .card-domingo { border-top-color: #10b981; } 
+        
+        .summary-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px; }
+        .summary-header h3 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 800; }
+        .summary-header span { font-size: 13px; color: #94a3b8; font-weight: bold; }
+        
+        .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; font-size: 15px; color: #64748b; font-weight: 600; }
+        .summary-row.dashed { border-bottom: 1px dotted #cbd5e1; }
+        
+        .badge-normal, .badge-na { background: #e2e8f0; color: #475569; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;}
+        .badge-na { background: #fee2e2; color: #ef4444; }
+        .val-bold { font-weight: 900; color: #0f172a; font-size: 18px; }
+        
+        .summary-total { text-align: center; padding: 20px 10px; border-radius: 8px; margin-top: 25px; background-color: #f8fafc; }
+        .summary-total p { margin: 0 0 5px 0; font-size: 13px; color: #64748b; font-weight: 700; }
+        .summary-total h2 { margin: 0; font-size: 42px; font-weight: 900; }
+        .total-sexta { color: #3b82f6; }
+        .total-sabado { color: #f59e0b; }
+        .total-domingo { color: #10b981; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dashboard - Lançamento de Horas Extras</h1>
+        <p class="obs" id="status-conexao" style="color: #0056b3; font-weight: bold;">Sincronizando banco de dados...</p>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="abrirAba('lancamentos')">Lançamentos da Tabela</button>
+            <button class="tab-btn" onclick="abrirAba('resumo')">Resumo (Comunicado)</button>
+            <button class="tab-btn" onclick="abrirAba('graficos')">Gráficos por Setor</button>
+        </div>
+
+        <div id="lancamentos" class="tab-content active">
+            <div class="dates-section">
+                <div>
+                    <label><strong>Data Sábado:</strong></label>
+                    <input type="date" id="data-sabado">
+                </div>
+                <div>
+                    <label><strong>Data Domingo:</strong></label>
+                    <input type="date" id="data-domingo">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="tabela-setores">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Setor</th>
+                            <th colspan="3" style="background-color: #f59e0b;">Sábado</th>
+                            <th colspan="3" style="background-color: #10b981;">Domingo</th>
+                        </tr>
+                        <tr>
+                            <th>1º TURNO</th> <th>2º TURNO</th> <th>3º TURNO</th>
+                            <th>1º TURNO</th> <th>2º TURNO</th> <th>3º TURNO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-setores">
+                        </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="text-align: right;">TOTAL TURNO:</td>
+                            <td id="tot-turno-s1">0</td> <td id="tot-turno-s2">0</td> <td id="tot-turno-s3">0</td>
+                            <td id="tot-turno-d1">0</td> <td id="tot-turno-d2">0</td> <td id="tot-turno-d3">0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <button class="btn" onclick="salvarEAtualizar()">GRAVAR ALTERAÇÕES</button>
+
+            <div class="dashboard-panel" id="dashboard-panel" style="display: none;">
+                <div class="card">
+                    <h2>Resumo Total (Pessoas)</h2>
+                    <p><strong>Total Sexta:</strong> <span id="tot-sexta">0</span> <span style="font-size: 11px; color:#999;">(Histórico)</span></p>
+                    <p><strong>Total Sábado:</strong> <span id="tot-sabado">0</span></p>
+                    <p><strong>Total Domingo:</strong> <span id="tot-domingo">0</span></p>
+                    <hr style="border-color: #e2e8f0; margin: 20px 0;">
+                    <p style="font-size: 1.2em; color: #0056b3; margin-bottom: 0;"><strong>Total Geral:</strong> <span id="tot-geral">0</span> pessoas</p>
+                </div>
+                
+                <div class="card">
+                    <h2>Estimativa de Custo</h2>
+                    <p><strong>Setores Produtivos:</strong> <span id="custo-produtivo" style="float: right;">R$ 0,00</span></p>
+                    <p><strong>Setores de Suporte:</strong> <span id="custo-suporte" style="float: right;">R$ 0,00</span></p>
+                    <hr style="border-color: #e2e8f0; margin: 38px 0 20px 0;">
+                    <p style="font-size: 1.2em; color: #dc2626; margin-bottom: 0;"><strong>Custo Total:</strong> <span id="custo-total" style="float: right; font-weight: bold;">R$ 0,00</span></p>
+                </div>
+
+                <div class="card">
+                    <h2>Indicador: Top Setores (Pessoas)</h2>
+                    <ul class="ranking-list" id="ranking-list">
+                        </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="resumo" class="tab-content">
+            <button class="btn" onclick="gerarResumoVisual()">GERAR RESUMO</button>
+            <div class="summary-container" id="painel-comunicado" style="display: none;">
+                
+                <h2 class="comunicado-title">
+                    <span style="color: #3b82f6;">📢</span> Comunicado: Resumo do Fim de Semana
+                </h2>
+
+                <div class="summary-card card-sexta">
+                    <div class="summary-header"><h3>Sexta</h3><span id="res-data-sexta">--/--</span></div>
+                    <div class="summary-row dashed"><span>Turno 1</span><span id="res-sx1-val" class="val-bold">0</span></div>
+                    <div class="summary-row dashed"><span>Turno 2</span><span id="res-sx2-val" class="val-bold">0</span></div>
+                    <div class="summary-row"><span>Turno 3</span><span id="res-sx3-val" class="val-bold">0</span></div>
+                    <div class="summary-total"><p>Total Extras (Pessoas)</p><h2 class="total-sexta" id="res-sx-total">0</h2></div>
+                </div>
+                <div class="summary-card card-sabado">
+                    <div class="summary-header"><h3>Sábado</h3><span id="res-data-sabado">--/--</span></div>
+                    <div class="summary-row dashed"><span>Turno 1</span><span id="res-s1-val" class="val-bold">0</span></div>
+                    <div class="summary-row dashed"><span>Turno 2</span><span id="res-s2-val" class="val-bold">0</span></div>
+                    <div class="summary-row"><span>Turno 3</span><span id="res-s3-val" class="val-bold">0</span></div>
+                    <div class="summary-total"><p>Total Extras (Pessoas)</p><h2 class="total-sabado" id="res-s-total">0</h2></div>
+                </div>
+                <div class="summary-card card-domingo">
+                    <div class="summary-header"><h3>Domingo</h3><span id="res-data-domingo">--/--</span></div>
+                    <div class="summary-row dashed"><span>Turno 1</span><span id="res-d1-val" class="val-bold">0</span></div>
+                    <div class="summary-row dashed"><span>Turno 2</span><span id="res-d2-val" class="val-bold">0</span></div>
+                    <div class="summary-row"><span>Turno 3</span><span id="res-d3-val" class="val-bold">0</span></div>
+                    <div class="summary-total"><p>Total Extras (Pessoas)</p><h2 class="total-domingo" id="res-d-total">0</h2></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="graficos" class="tab-content">
+            <div class="chart-container">
+                <h2>Total Acumulado de Pessoas por Setor (Sexta a Domingo)</h2>
+                <canvas id="graficoSetores"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2 style="color: #dc2626;">Custo Estimado por Setor (R$)</h2>
+                <canvas id="graficoCustos"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // AS SUAS CHAVES DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyAt34GhxkLzDwMcugyqLRTTrKl2dQvGBRM",
+            authDomain: "dashboard-horas-extras.firebaseapp.com",
+            projectId: "dashboard-horas-extras",
+            storageBucket: "dashboard-horas-extras.firebasestorage.app",
+            messagingSenderId: "323819838419",
+            appId: "1:323819838419:web:da55fd1d7473e9159c6d26"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const docRef = doc(db, "bancoHorasExtras", "registroAtual"); 
+
+        const setores = [
+            "Injeção Aluminio", "Fresa", "Montagem", "Manutenção montagem", "Limpeza", "Inspeção final", 
+            "Injeção PPS", "Logistica", "Mercado reposição/embalagem", "Qualidade", "Desmontagem", 
+            "Inspeção do recebimento Qualidade", "Metrologia", "Engenharia Usinagem", 
+            "Engenharia Processo montagem", "Engenharia Processo Injeção", "Engenharia Produção / Qualidade", 
+            "PCP", "Expedição", "Manutenção Usinagem", "Montagem Manual", "Montagem PPS", "Tornos"
+        ];
+
+        const classificacaoSetores = {
+            "Injeção Aluminio": { grupo: "Produtivo", custo: 11.59 }, "Fresa": { grupo: "Produtivo", custo: 11.59 },
+            "Montagem": { grupo: "Produtivo", custo: 11.59 }, "Inspeção final": { grupo: "Produtivo", custo: 11.59 },
+            "Injeção PPS": { grupo: "Produtivo", custo: 11.59 }, "Montagem Manual": { grupo: "Produtivo", custo: 11.59 },
+            "Montagem PPS": { grupo: "Produtivo", custo: 11.59 }, "Tornos": { grupo: "Produtivo", custo: 11.59 },
+            "Manutenção montagem": { grupo: "Suporte", custo: 20.45 }, "Limpeza": { grupo: "Suporte", custo: 20.45 },
+            "Logistica": { grupo: "Suporte", custo: 20.45 }, "Mercado reposição/embalagem": { grupo: "Suporte", custo: 20.45 },
+            "Qualidade": { grupo: "Suporte", custo: 20.45 }, "Desmontagem": { grupo: "Suporte", custo: 20.45 },
+            "Inspeção do recebimento Qualidade": { grupo: "Suporte", custo: 20.45 }, "Metrologia": { grupo: "Suporte", custo: 20.45 },
+            "Engenharia Usinagem": { grupo: "Suporte", custo: 20.45 }, "Engenharia Processo montagem": { grupo: "Suporte", custo: 20.45 },
+            "Engenharia Processo Injeção": { grupo: "Suporte", custo: 20.45 }, "Engenharia Produção / Qualidade": { grupo: "Suporte", custo: 20.45 },
+            "PCP": { grupo: "Suporte", custo: 20.45 }, "Expedição": { grupo: "Suporte", custo: 20.45 },
+            "Manutenção Usinagem": { grupo: "Suporte", custo: 20.45 }
+        };
+
+        let meuGraficoPessoas = null; 
+        let meuGraficoCustos = null; 
+        const horasTrabalhadasPorPessoa = 7; 
+        
+        let dadosNuvem = { dados: {}, dataSexta: '--/--', dataSabado: '', dataDomingo: '' };
+
+        window.atualizarCor = function(elemento) {
+            const val = parseInt(elemento.value);
+            if (!isNaN(val) && val > 0) {
+                elemento.style.color = '#dc2626'; elemento.style.fontWeight = 'bold'; elemento.style.backgroundColor = '#fee2e2';
+            } else {
+                elemento.style.color = '#333'; elemento.style.fontWeight = 'normal'; elemento.style.backgroundColor = '#fff';
+            }
+        }
+
+        window.criarSelectHTML = function(id, valorSelecionado) {
+            let num = parseInt(valorSelecionado);
+            let style = (!isNaN(num) && num > 0) ? 'color: #dc2626; font-weight: bold; background-color: #fee2e2;' : '';
+
+            let options = `<option value=""></option>`;
+            options += `<option value="Normal" ${valorSelecionado === 'Normal' ? 'selected' : ''}>Normal</option>`;
+            options += `<option value="N/A" ${valorSelecionado === 'N/A' ? 'selected' : ''}>N/A</option>`;
+            for (let i = 1; i <= 30; i++) {
+                options += `<option value="${i}" ${valorSelecionado == i ? 'selected' : ''}>${i}</option>`;
+            }
+            return `<select id="${id}" style="${style}" onchange="atualizarCor(this)">${options}</select>`;
+        }
+
+        window.abrirAba = function(nomeAba) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(nomeAba).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        window.carregarTabela = async function() {
+            // BACKUP 1: Tenta buscar os dados locais antigos em todas as chaves possíveis para não perder nada
+            let dadosAntigosLocais = JSON.parse(localStorage.getItem('dadosHorasExtrasNovo')) || 
+                                     JSON.parse(localStorage.getItem('dadosHorasExtrasFDS')) || 
+                                     JSON.parse(localStorage.getItem('dadosHorasExtras')) || {};
+
+            let fallbackHistorico = {
+                dados: dadosAntigosLocais,
+                dataSexta: localStorage.getItem('dataSexta') || '--/--',
+                dataSabado: localStorage.getItem('dataSabado') || '',
+                dataDomingo: localStorage.getItem('dataDomingo') || ''
+            };
+
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    dadosNuvem = docSnap.data();
+                    document.getElementById('status-conexao').innerText = "Conectado ao Firebase com sucesso!";
+                    document.getElementById('status-conexao').style.color = "#10b981";
+                } else {
+                    // Firebase conectou, mas está VAZIO. Usa o histórico do PC e já manda pra lá!
+                    dadosNuvem = fallbackHistorico;
+                    if (Object.keys(dadosAntigosLocais).length > 0) {
+                        await setDoc(docRef, dadosNuvem);
+                        document.getElementById('status-conexao').innerText = "Seu histórico anterior foi resgatado e salvo na nuvem com sucesso!";
+                        document.getElementById('status-conexao').style.color = "#3b82f6";
+                    }
+                }
+            } catch (error) {
+                // ERRO DE CONEXÃO OU PERMISSÃO (Offline) -> Puxa do computador!
+                console.error("Erro Firebase:", error);
+                dadosNuvem = fallbackHistorico;
+                document.getElementById('status-conexao').innerText = "Aviso: Sem conexão com a nuvem. Usando histórico salvo no seu computador.";
+                document.getElementById('status-conexao').style.color = "#f59e0b";
+            }
+
+            const tbody = document.getElementById('tbody-setores');
+            let dadosSalvos = dadosNuvem.dados || {};
+            
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('data-sabado').value = dadosNuvem.dataSabado || hoje;
+            document.getElementById('data-domingo').value = dadosNuvem.dataDomingo || hoje;
+
+            setores.forEach((setor, index) => {
+                const idSetor = 'setor_' + index;
+                const d = dadosSalvos[idSetor] || { s1: '', s2: '', s3: '', d1: '', d2: '', d3: 'Normal' };
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; white-space: nowrap;">${setor}</td>
+                        <td>${criarSelectHTML(idSetor + '_s1', d.s1)}</td>
+                        <td>${criarSelectHTML(idSetor + '_s2', d.s2)}</td>
+                        <td>${criarSelectHTML(idSetor + '_s3', d.s3)}</td>
+                        <td>${criarSelectHTML(idSetor + '_d1', d.d1)}</td>
+                        <td>${criarSelectHTML(idSetor + '_d2', d.d2)}</td>
+                        <td>${criarSelectHTML(idSetor + '_d3', d.d3)}</td>
+                    </tr>
+                `;
+            });
+            
+            if(Object.keys(dadosSalvos).length > 0) {
+                processarCalculosEVisuais(dadosNuvem, false);
+            }
+        }
+
+        window.salvarEAtualizar = async function() {
+            // Usa os dados da nuvem ou os locais garantidos no carregamento
+            let dadosAntigos = dadosNuvem.dados || {};
+            let novosDados = {};
+
+            const valSabado = document.getElementById('data-sabado').value;
+            const valDomingo = document.getElementById('data-domingo').value;
+            
+            // Garantir que a sexta-feira antiga continue existindo
+            let dataSextaSalva = dadosNuvem.dataSexta || localStorage.getItem('dataSexta') || '--/--';
+
+            setores.forEach((setor, index) => {
+                const idSetor = 'setor_' + index;
+                
+                // Resgata os turnos de sexta da memória anterior para não perder
+                const val_sx1 = dadosAntigos[idSetor] ? dadosAntigos[idSetor].sx1 : '';
+                const val_sx2 = dadosAntigos[idSetor] ? dadosAntigos[idSetor].sx2 : '';
+                const val_sx3 = dadosAntigos[idSetor] ? dadosAntigos[idSetor].sx3 : '';
+
+                const val_s1 = document.getElementById(idSetor + '_s1').value;
+                const val_s2 = document.getElementById(idSetor + '_s2').value;
+                const val_s3 = document.getElementById(idSetor + '_s3').value;
+
+                const val_d1 = document.getElementById(idSetor + '_d1').value;
+                const val_d2 = document.getElementById(idSetor + '_d2').value;
+                const val_d3 = document.getElementById(idSetor + '_d3').value;
+
+                novosDados[idSetor] = { sx1: val_sx1, sx2: val_sx2, sx3: val_sx3, s1: val_s1, s2: val_s2, s3: val_s3, d1: val_d1, d2: val_d2, d3: val_d3 };
+            });
+
+            const payloadNuvem = {
+                dados: novosDados,
+                dataSexta: dataSextaSalva,
+                dataSabado: valSabado,
+                dataDomingo: valDomingo
+            };
+
+            // BACKUP 2: Sempre salva no computador também por segurança!
+            localStorage.setItem('dadosHorasExtrasNovo', JSON.stringify(novosDados));
+            localStorage.setItem('dataSabado', valSabado);
+            localStorage.setItem('dataDomingo', valDomingo);
+            localStorage.setItem('dataSexta', dataSextaSalva);
+
+            try {
+                await setDoc(docRef, payloadNuvem);
+                dadosNuvem = payloadNuvem; 
+                processarCalculosEVisuais(dadosNuvem, true);
+            } catch (error) {
+                console.error("Erro ao salvar no Firebase:", error);
+                // Mesmo dando erro no Firebase, atualiza a tela com os dados novos salvos localmente
+                dadosNuvem = payloadNuvem;
+                processarCalculosEVisuais(dadosNuvem, false);
+                alert("Aviso: Salvo apenas no seu computador localmente! Houve falha ao comunicar com o banco de dados Firebase.");
+            }
+        }
+
+        function processarCalculosEVisuais(fonteDeDados, mostrarAlerta) {
+            let totaisSetor = [];
+            let totSexta = 0, totSabado = 0, totDomingo = 0;
+            let custoProdutivo = 0, custoSuporte = 0;
+            let totaisTurno = { s1: 0, s2: 0, s3: 0, d1: 0, d2: 0, d3: 0 };
+            
+            let r = { 
+                sx1:{s:0, n:false, na:false}, sx2:{s:0, n:false, na:false}, sx3:{s:0, n:false, na:false},
+                s1:{s:0, n:false, na:false}, s2:{s:0, n:false, na:false}, s3:{s:0, n:false, na:false},
+                d1:{s:0, n:false, na:false}, d2:{s:0, n:false, na:false}, d3:{s:0, n:false, na:false} 
+            };
+
+            setores.forEach((setor, index) => {
+                const idSetor = 'setor_' + index;
+                const d = fonteDeDados.dados[idSetor];
+                if(!d) return;
+
+                ['sx1','sx2','sx3','s1','s2','s3','d1','d2','d3'].forEach(turno => {
+                    if (d[turno] === 'Normal') r[turno].n = true;
+                    if (d[turno] === 'N/A') r[turno].na = true;
+                    r[turno].s += (parseInt(d[turno]) || 0);
+                });
+
+                const sx1 = parseInt(d.sx1) || 0; const sx2 = parseInt(d.sx2) || 0; const sx3 = parseInt(d.sx3) || 0;
+                const s1 = parseInt(d.s1) || 0;   const s2 = parseInt(d.s2) || 0;   const s3 = parseInt(d.s3) || 0;
+                const d1 = parseInt(d.d1) || 0;   const d2 = parseInt(d.d2) || 0;   const d3 = parseInt(d.d3) || 0;
+
+                const somaSexta = sx1 + sx2 + sx3;
+                const somaSabado = s1 + s2 + s3;
+                const somaDomingo = d1 + d2 + d3;
+                const totalSetor = somaSexta + somaSabado + somaDomingo;
+                
+                totSexta += somaSexta; totSabado += somaSabado; totDomingo += somaDomingo;
+
+                totaisTurno.s1 += s1; totaisTurno.s2 += s2; totaisTurno.s3 += s3;
+                totaisTurno.d1 += d1; totaisTurno.d2 += d2; totaisTurno.d3 += d3;
+
+                let custoSetor = 0;
+                if (totalSetor > 0 && classificacaoSetores[setor]) {
+                    custoSetor = totalSetor * horasTrabalhadasPorPessoa * classificacaoSetores[setor].custo;
+                    if (classificacaoSetores[setor].grupo === "Produtivo") custoProdutivo += custoSetor;
+                    else custoSuporte += custoSetor;
+                }
+
+                if (totalSetor > 0) {
+                    totaisSetor.push({ nome: setor, total: totalSetor, sexta: somaSexta, sabado: somaSabado, domingo: somaDomingo, custo: custoSetor });
+                }
+            });
+
+            document.getElementById('tot-sexta').innerText = totSexta;
+            document.getElementById('tot-sabado').innerText = totSabado;
+            document.getElementById('tot-domingo').innerText = totDomingo;
+            document.getElementById('tot-geral').innerText = totSexta + totSabado + totDomingo;
+
+            const formataBRL = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('custo-produtivo').innerText = formataBRL(custoProdutivo);
+            document.getElementById('custo-suporte').innerText = formataBRL(custoSuporte);
+            document.getElementById('custo-total').innerText = formataBRL(custoProdutivo + custoSuporte);
+
+            document.getElementById('tot-turno-s1').innerText = totaisTurno.s1; document.getElementById('tot-turno-s2').innerText = totaisTurno.s2; document.getElementById('tot-turno-s3').innerText = totaisTurno.s3;
+            document.getElementById('tot-turno-d1').innerText = totaisTurno.d1; document.getElementById('tot-turno-d2').innerText = totaisTurno.d2; document.getElementById('tot-turno-d3').innerText = totaisTurno.d3;
+
+            const listaRanking = document.getElementById('ranking-list');
+            listaRanking.innerHTML = '';
+            let rankingOrdenado = [...totaisSetor].sort((a, b) => b.total - a.total); 
+            if(rankingOrdenado.length === 0) {
+                listaRanking.innerHTML = '<li><span>Nenhum dado preenchido.</span></li>';
+            } else {
+                rankingOrdenado.slice(0, 5).forEach(item => {
+                    listaRanking.innerHTML += `<li><span>${item.nome}</span> <strong>${item.total}</strong></li>`;
+                });
+            }
+
+            document.getElementById('res-data-sexta').innerText = window.formatarDataCurta(fonteDeDados.dataSexta);
+            document.getElementById('res-data-sabado').innerText = window.formatarDataCurta(fonteDeDados.dataSabado);
+            document.getElementById('res-data-domingo').innerText = window.formatarDataCurta(fonteDeDados.dataDomingo);
+
+            document.getElementById('res-sx1-val').innerHTML = window.formatarTurnoHTML(r.sx1.s, r.sx1.n, r.sx1.na);
+            document.getElementById('res-sx2-val').innerHTML = window.formatarTurnoHTML(r.sx2.s, r.sx2.n, r.sx2.na);
+            document.getElementById('res-sx3-val').innerHTML = window.formatarTurnoHTML(r.sx3.s, r.sx3.n, r.sx3.na);
+            document.getElementById('res-sx-total').innerText = r.sx1.s + r.sx2.s + r.sx3.s;
+
+            document.getElementById('res-s1-val').innerHTML = window.formatarTurnoHTML(r.s1.s, r.s1.n, r.s1.na);
+            document.getElementById('res-s2-val').innerHTML = window.formatarTurnoHTML(r.s2.s, r.s2.n, r.s2.na);
+            document.getElementById('res-s3-val').innerHTML = window.formatarTurnoHTML(r.s3.s, r.s3.n, r.s3.na);
+            document.getElementById('res-s-total').innerText = r.s1.s + r.s2.s + r.s3.s;
+
+            document.getElementById('res-d1-val').innerHTML = window.formatarTurnoHTML(r.d1.s, r.d1.n, r.d1.na);
+            document.getElementById('res-d2-val').innerHTML = window.formatarTurnoHTML(r.d2.s, r.d2.n, r.d2.na);
+            document.getElementById('res-d3-val').innerHTML = window.formatarTurnoHTML(r.d3.s, r.d3.n, r.d3.na);
+            document.getElementById('res-d-total').innerText = r.d1.s + r.d2.s + r.d3.s;
+
+            document.getElementById('dashboard-panel').style.display = 'flex';
+            window.gerarGraficos(totaisSetor);
+
+            if(mostrarAlerta) alert('Dados salvos na nuvem com sucesso!');
+        }
+
+        window.formatarDataCurta = function(dataStr) {
+            if(!dataStr || dataStr === '--/--') return '--/--';
+            const p = dataStr.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}` : dataStr;
+        }
+
+        window.formatarTurnoHTML = function(soma, temNormal, temNA) {
+            if (soma > 0) return `<span class="val-bold">${soma}</span>`;
+            if (temNormal) return `<span class="badge-normal">NORMAL</span>`;
+            if (temNA) return `<span class="badge-na">N/A</span>`;
+            return `<span class="val-bold">0</span>`;
+        }
+
+        window.gerarResumoVisual = async function() {
+            await window.salvarEAtualizar();
+            document.getElementById('painel-comunicado').style.display = 'flex';
+        }
+
+        const pluginValorNoTopo = {
+            id: 'pluginValorNoTopo',
+            afterDatasetsDraw(chart) {
+                const ctx = chart.ctx;
+                chart.data.datasets.forEach((dataset, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    meta.data.forEach((bar, index) => {
+                        const data = dataset.data[index];
+                        if (data > 0) {
+                            ctx.save(); ctx.fillStyle = '#1e293b'; ctx.font = 'bold 12px sans-serif';
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+                            ctx.fillText('R$ ' + data.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), bar.x, bar.y - 5);
+                            ctx.restore();
+                        }
+                    });
+                });
+            }
+        };
+
+        window.gerarGraficos = function(dadosSetor) {
+            const ctxPessoas = document.getElementById('graficoSetores').getContext('2d');
+            const ctxCustos = document.getElementById('graficoCustos').getContext('2d');
+            
+            const labels = dadosSetor.map(item => item.nome);
+            const dataSexta = dadosSetor.map(item => item.sexta);
+            const dataSabado = dadosSetor.map(item => item.sabado);
+            const dataDomingo = dadosSetor.map(item => item.domingo);
+            const dataCustos = dadosSetor.map(item => item.custo);
+
+            if (meuGraficoPessoas) meuGraficoPessoas.destroy();
+            if (meuGraficoCustos) meuGraficoCustos.destroy();
+
+            meuGraficoPessoas = new Chart(ctxPessoas, {
+                type: 'bar',
+                data: { labels: labels, datasets: [ { label: 'Sexta', data: dataSexta, backgroundColor: '#3b82f6' }, { label: 'Sábado', data: dataSabado, backgroundColor: '#f59e0b' }, { label: 'Domingo', data: dataDomingo, backgroundColor: '#10b981' } ] },
+                options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: true, position: 'top' }, tooltip: { mode: 'index', intersect: false } } }
+            });
+
+            meuGraficoCustos = new Chart(ctxCustos, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Custo Estimado (R$)', data: dataCustos, backgroundColor: '#ef4444', borderRadius: 4 }] },
+                options: { layout: { padding: { top: 25 } }, responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': ' + c.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); } } } } },
+                plugins: [pluginValorNoTopo] 
+            });
+        }
+
+        window.onload = window.carregarTabela;
+    </script>
+</body>
+</html>
